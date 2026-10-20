@@ -139,11 +139,14 @@ OB_Care_Sistema_de_Gestion_Obstetrica/
 ├── recienNacidoApp/         # Ficha neonatal, APGAR y somatometría
 ├── gestionProcesosApp/      # Turnos de personal, bot de Telegram y trazabilidad clínica
 ├── legacyApp/               # Integración de consulta con base de datos histórica
+├── tools/                   # Scripts auxiliares organizados (mantenimiento, parches y batch)
+│   ├── maintenance/         # Scripts Python de diagnóstico y reparación
+│   └── batch/               # Automatizaciones .bat y .ps1
 ├── templates/               # Plantillas HTML globales y por módulo (Bootstrap 5)
 ├── static/                  # Archivos estáticos (CSS, JS, imágenes e iconos)
 ├── utilidad/                # Validadores (RUT, IMC), manuales PDF oficiales y catálogos
 ├── tests/                   # Suite de pruebas automatizadas (pytest)
-├── docs/                    # Documentación interna (Guía de roles, flujos)
+├── docs/                    # Documentación interna (manuales, guía de roles e imágenes)
 ├── requirements.txt         # Dependencias Python del proyecto
 ├── setup_project.py         # Script de inicialización rápida
 ├── manage.py                # CLI de Django
