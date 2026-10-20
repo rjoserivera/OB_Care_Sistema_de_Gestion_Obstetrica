@@ -2,284 +2,154 @@
 
 ## Descripción
 
-La aplicación `legacyApp` permite la integración con el sistema heredado del hospital, facilitando la consulta de datos históricos como controles prenatales previos y antecedentes de pacientes que fueron registrados en el sistema anterior.
+`legacyApp` expone, en **solo lectura**, los controles prenatales registrados en el sistema anterior del hospital (base `legacy_obstetric`). Su único uso actual es mostrar el historial de controles previos de una paciente en las pantallas de ficha obstétrica de `matronaApp`.
 
----
+La app no tiene vistas, URLs, templates ni admin propios: entrega un modelo y una función de servicio que otras apps consumen.
 
-## 📊 Modelos
-
-### ControlesPrevios
-
-```python
-class ControlesPrevios(models.Model):
-    """
-    Modelo para consultar controles previos del sistema legacy
-    Solo lectura - No se modifican estos datos
-    """
-    
-    # Identificación del paciente (legacy)
-    rut_paciente = models.CharField(
-        max_length=20,
-        verbose_name='RUT Paciente'
-    )
-    
-    # Datos del control
-    fecha_control = models.DateField(
-        verbose_name='Fecha del Control'
-    )
-    
-    semana_gestacional = models.IntegerField(
-        null=True, blank=True,
-        verbose_name='Semana Gestacional'
-    )
-    
-    peso = models.DecimalField(
-        max_digits=5, decimal_places=2,
-        null=True, blank=True,
-        verbose_name='Peso (kg)'
-    )
-    
-    presion_arterial = models.CharField(
-        max_length=20,
-        blank=True,
-        verbose_name='Presión Arterial'
-    )
-    
-    altura_uterina = models.DecimalField(
-        max_digits=4, decimal_places=1,
-        null=True, blank=True,
-        verbose_name='Altura Uterina (cm)'
-    )
-    
-    fcf = models.IntegerField(
-        null=True, blank=True,
-        verbose_name='FCF (latidos/min)'
-    )
-    
-    movimientos_fetales = models.BooleanField(
-        default=False,
-        verbose_name='Movimientos Fetales'
-    )
-    
-    presentacion = models.CharField(
-        max_length=50,
-        blank=True,
-        verbose_name='Presentación'
-    )
-    
-    observaciones = models.TextField(
-        blank=True,
-        verbose_name='Observaciones'
-    )
-    
-    profesional = models.CharField(
-        max_length=200,
-        blank=True,
-        verbose_name='Profesional que Realizó el Control'
-    )
-    
-    establecimiento = models.CharField(
-        max_length=200,
-        blank=True,
-        verbose_name='Establecimiento'
-    )
-    
-    class Meta:
-        app_label = 'legacyApp'
-        managed = False  # Django no gestiona esta tabla
-        db_table = 'legacy_controles_previos'
-        verbose_name = 'Control Previo (Legacy)'
-        verbose_name_plural = 'Controles Previos (Legacy)'
-        ordering = ['-fecha_control']
+```
+legacyApp/
+├── models.py      # ControlesPrevios (managed = False)
+├── services.py    # obtener_controles_previos(rut, limite=20)
+├── tests.py       # Tests del servicio y del router (sin BD)
+└── documentación/legacyApp.md
 ```
 
 ---
 
-## ⚙️ Configuración de Base de Datos Dual
+## 📊 Modelo: ControlesPrevios
+
+Mapea la tabla `controles_previos` de la BD legacy. Django **no** crea ni migra esta tabla (`managed = False`).
 
 ```python
-# settings.py
+class Meta:
+    managed = False
+    db_table = 'controles_previos'
+    ordering = ['-fecha_control']
+```
+
+| Grupo | Campos principales |
+|-------|--------------------|
+| Identificación del control | `paciente_rut` (formato `12345678-9`), `fecha_control`, `numero_control`, `tipo_control`, `consultorio_origen`, `profesional_nombre`, `profesional_tipo` |
+| Edad gestacional | `semanas_gestacion`, `dias_gestacion`, `fur`, `fpp` |
+| Antropometría | `peso_kg`, `talla_cm`, `imc`, `altura_uterina_cm`, `ganancia_peso_total_kg` |
+| Signos vitales | `presion_sistolica`, `presion_diastolica`, `frecuencia_cardiaca_materna`, `temperatura_c`, `saturacion_o2` |
+| Evaluación fetal | `fcf_lpm`, `movimientos_fetales`, `presentacion_fetal`, `situacion_fetal` |
+| Laboratorio | `glucosa_mg_dl`, `hemoglobina_g_dl`, `hematocrito_pct`, `grupo_sanguineo`, `factor_rh`, `proteinuria`, `leucocitos_orina` |
+| Infecciosos | `vih_resultado`/`vih_fecha_toma`/`vih_orden`, `vdrl_*`, `sgb_*` (incl. `sgb_profilaxis`), `toxoplasma_*`, `hepatitis_b_*` |
+| Patologías (booleanos) | `diabetes_gestacional`, `hipertension_arterial`, `preeclampsia_leve`, `preeclampsia_severa`, `eclampsia`, `anemia`, `infeccion_urinaria`, `corioamnionitis`, `amenaza_parto_prematuro`, `rotura_prematura_membranas`, `otras_patologias` |
+| Tratamiento | `medicamentos_activos`, `acido_folico`, `sulfato_ferroso`, `aspirina_profilactica`, `otros_tratamientos` |
+| Historia obstétrica | `numero_gestas`, `numero_partos`, `partos_vaginales_previos`, `cesareas_previas`, `numero_abortos`, `hijos_vivos`, `paridad_formato` |
+| Examen físico | `edema_grado`, `edema_localizacion`, `varices`, `reflejos_osteotendinosos` |
+| Plan de parto / riesgo | `numero_aro`, `nivel_riesgo` (`ALTO`/`MEDIO`/`BAJO`), `tiene_plan_parto`, `realizo_visita_guiada` |
+| Notas | `fecha_proximo_control`, `observaciones`, `indicaciones_medicas`, `motivo_consulta`, `turno`, `fecha_hora_registro`, `sistema_origen` |
+
+La PK es el `id bigint AUTO_INCREMENT` de la tabla (implícito en Django). `paciente_rut` y `fecha_control` tienen índice.
+
+El esquema de referencia y datos de ejemplo (5 controles del RUT `16293109-1`) están en `utilidad/legacy_obstetric (1).sql`.
+
+---
+
+## 🔧 Servicio: obtener_controles_previos
+
+```python
+from legacyApp.services import obtener_controles_previos
+
+controles, legacy_disponible = obtener_controles_previos(persona.Rut)
+```
+
+- Retorna una **lista ya evaluada** con los últimos `limite` (por defecto 20) controles, ordenados por `fecha_control` descendente.
+- Si la BD legacy no responde (`DatabaseError`), registra el error en el logger `legacyApp.services` y retorna `([], False)`. **La vista que lo llama no falla.**
+- Si el RUT viene vacío, retorna `([], True)` sin consultar.
+
+Se recomienda usar este servicio en lugar de consultar `ControlesPrevios` directamente: la BD legacy no debería poder tumbar pantallas clínicas.
+
+### Uso actual (matronaApp)
+
+Hoy `matronaApp/views.py` **no** usa el servicio: consulta `ControlesPrevios` directamente (`.filter(paciente_rut=persona.Rut).order_by('-fecha_control')[:20]`) en estas vistas:
+
+| Vista | Template |
+|-------|----------|
+| `crear_ficha_obstetrica_persona` | `Matrona/crear_ficha_obstetrica.html` (tab "Historial de Controles Prenatales") |
+| `editar_ficha_obstetrica` | `Matrona/crear_ficha_obstetrica.html` |
+| `detalle_ficha_obstetrica` | `Matrona/detalle_ficha_obstetrica.html` (tab "Controles Previos (Historial Legacy)") |
+
+Mientras no se migre al servicio, una caída de la BD legacy produce un error 500 en esas pantallas.
+
+Migración sugerida en cada vista:
+
+```python
+controles_previos, legacy_disponible = obtener_controles_previos(persona.Rut)
+context['legacy_disponible'] = legacy_disponible
+```
+
+En los templates, mostrar un aviso con `{% if legacy_disponible is False %}`. En el detalle, reemplazar `{{ controles_previos.count }}` por `{{ controles_previos|length }}`, porque el servicio devuelve una lista.
+
+---
+
+## ⚙️ Configuración de base de datos
+
+En `obstetric_care/settings.py`:
+
+```python
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'obstetric_care',
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': 'localhost',
-        'PORT': '3306',
-    },
+    'default': { ... 'NAME': 'obstetric_carebdd' ... },
     'legacy': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'hospital_legacy',
-        'USER': os.environ.get('LEGACY_DB_USER'),
-        'PASSWORD': os.environ.get('LEGACY_DB_PASSWORD'),
-        'HOST': os.environ.get('LEGACY_DB_HOST', 'localhost'),
-        'PORT': '3306',
-        'OPTIONS': {
-            'read_default_file': '/etc/mysql/legacy.cnf',
-        }
-    }
+        'NAME': 'legacy_obstetric',
+        'USER': os.environ.get('DB_USER', 'root'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
+        'OPTIONS': {'charset': 'utf8mb4'},
+    },
 }
 
-# Router para bases de datos
-DATABASE_ROUTERS = ['legacyApp.routers.LegacyRouter']
+DATABASE_ROUTERS = ['obstetric_care.dbrouters.LegacyRouter']
 ```
 
-### Router de Base de Datos
+Ambas conexiones usan hoy las mismas variables `DB_*`.
 
-```python
-# legacyApp/routers.py
-class LegacyRouter:
-    """Router para dirigir consultas legacy a la BD correcta"""
-    
-    legacy_apps = {'legacyApp'}
-    
-    def db_for_read(self, model, **hints):
-        if model._meta.app_label in self.legacy_apps:
-            return 'legacy'
-        return 'default'
-    
-    def db_for_write(self, model, **hints):
-        if model._meta.app_label in self.legacy_apps:
-            return None  # No permitir escritura en legacy
-        return 'default'
-    
-    def allow_relation(self, obj1, obj2, **hints):
-        return True
-    
-    def allow_migrate(self, db, app_label, model_name=None, **hints):
-        if app_label in self.legacy_apps:
-            return False  # No migrar modelos legacy
-        return db == 'default'
+### Router (`obstetric_care/dbrouters.py`)
+
+| Método | Comportamiento para `legacyApp` |
+|--------|---------------------------------|
+| `db_for_read` | `'legacy'` |
+| `db_for_write` | `None` (no asigna BD) |
+| `allow_relation` | `True` |
+| `allow_migrate` | `False` en cualquier BD |
+
+### Montar la BD legacy en local
+
+```bash
+mysql -u root -p -e "CREATE DATABASE legacy_obstetric CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql -u root -p legacy_obstetric < "utilidad/legacy_obstetric (1).sql"
+python manage.py cargar_paciente_legacy
 ```
+
+`cargar_paciente_legacy` crea en la BD principal la `Persona`/`Paciente` del RUT `16293109-1`, que tiene 5 controles en el dump legacy.
+
+> El archivo está hoy en `medicoApp/management/cargar_paciente_legacy.py`, fuera de `commands/`, por lo que Django no lo registra. Para que el comando funcione debe moverse a `medicoApp/management/commands/`.
 
 ---
 
-## 🔗 URLs
+## 🧪 Tests
 
-```python
-# legacyApp/urls.py
-app_name = 'legacy'
-
-urlpatterns = [
-    # Consulta de controles previos
-    path('controles/<str:rut>/', views.consultar_controles_previos, name='consultar_controles'),
-    
-    # API
-    path('api/controles/<str:rut>/', views.api_controles_previos, name='api_controles'),
-]
+```bash
+python -m pytest legacyApp/tests.py
 ```
+
+No requieren MySQL: simulan el queryset y cubren el caso normal, la caída de la BD legacy, el RUT vacío y el router.
 
 ---
 
-## 📋 Vistas
+## ⚠️ Limitaciones conocidas
 
-### consultar_controles_previos
-
-```python
-@login_required
-def consultar_controles_previos(request, rut):
-    """
-    Consultar controles previos de un paciente en sistema legacy
-    """
-    # Normalizar RUT
-    rut_normalizado = normalizar_rut(rut)
-    
-    # Buscar en BD legacy
-    controles = ControlesPrevios.objects.using('legacy').filter(
-        rut_paciente=rut_normalizado
-    ).order_by('-fecha_control')
-    
-    # Buscar paciente actual si existe
-    try:
-        persona = Persona.objects.get(Rut=rut_normalizado)
-        paciente = Paciente.objects.get(persona=persona)
-    except (Persona.DoesNotExist, Paciente.DoesNotExist):
-        paciente = None
-    
-    context = {
-        'rut': rut,
-        'controles': controles,
-        'paciente': paciente,
-        'total_controles': controles.count(),
-        'titulo': f'Controles Previos - {rut}'
-    }
-    return render(request, 'Legacy/controles_previos.html', context)
-```
+1. **La escritura no está bloqueada de forma estricta.** `db_for_write` devuelve `None`, lo que en Django significa "sin opinión": un `save()` sobre `ControlesPrevios` iría a `default` (y fallaría porque la tabla no existe ahí). La garantía de solo lectura hoy es por convención.
+2. **Mismas credenciales que la BD principal.** Lo recomendable es un usuario MySQL con permiso solo `SELECT` sobre `legacy_obstetric`.
+3. **matronaApp aún no usa `obtener_controles_previos`** (ver "Uso actual"), así que una caída de legacy sigue afectando las fichas obstétricas.
+4. **El comando `cargar_paciente_legacy` no está registrado** (ver "Montar la BD legacy en local").
+5. Los campos de resultado (`vih_resultado`, `vdrl_resultado`, `nivel_riesgo`, etc.) son texto libre; los templates comparan contra valores exactos (`POSITIVO`, `REACTIVO`, `ALTO`).
 
 ---
 
-## 🖼️ Templates
-
-```
-templates/Legacy/
-├── controles_previos.html     # Lista de controles previos
-├── detalle_control.html       # Detalle de un control
-└── buscar_legacy.html         # Formulario de búsqueda
-```
-
----
-
-## 📊 Flujo de Integración
-
-```
-1. Usuario busca paciente por RUT
-              ↓
-2. Sistema busca en BD principal (obstetric_care)
-              ↓
-3. Si existe, muestra datos actuales
-              ↓
-4. Paralelamente consulta BD legacy
-              ↓
-5. Muestra controles previos del sistema anterior
-              ↓
-6. Usuario puede importar datos relevantes
-```
-
----
-
-## 📊 Diagrama de Arquitectura
-
-```
-┌─────────────────────────────────────────────────┐
-│                   OB_CARE                        │
-│                  (Django)                        │
-└─────────────────────┬───────────────────────────┘
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-          ▼                       ▼
-┌─────────────────┐     ┌─────────────────┐
-│   obstetric_care │     │  hospital_legacy │
-│   (MySQL - RW)   │     │   (MySQL - RO)   │
-│                 │     │                 │
-│ - gestionApp    │     │ - controles     │
-│ - matronaApp    │     │ - antecedentes  │
-│ - partosApp     │     │ - historico     │
-│ - etc.          │     │                 │
-└─────────────────┘     └─────────────────┘
-```
-
----
-
-## 🔐 Seguridad
-
-| Aspecto | Implementación |
-|---------|----------------|
-| Solo lectura | `managed = False`, Router bloquea escritura |
-| Autenticación | Solo usuarios autenticados |
-| Logging | Registro de cada consulta legacy |
-| Sanitización | RUT normalizado antes de consultar |
-
----
-
-## 📌 Notas Importantes
-
-1. **Solo Lectura**: Los datos legacy nunca se modifican desde OB_CARE.
-2. **managed = False**: Django no crea/modifica tablas legacy.
-3. **Router**: Dirige automáticamente las consultas a la BD correcta.
-4. **Migración Gradual**: Permite operar mientras se migran datos.
-
----
-
-*Documentación de legacyApp - OB_CARE v1.0*
+*Documentación de legacyApp - OB_CARE*
