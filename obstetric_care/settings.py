@@ -107,6 +107,13 @@ WSGI_APPLICATION = 'obstetric_care.wsgi.application'
 import pymysql
 pymysql.install_as_MySQLdb()
 
+# Compatibilidad con versiones de MariaDB en entornos locales (XAMPP < 10.5)
+from django.db.backends.base.base import BaseDatabaseWrapper
+BaseDatabaseWrapper.check_database_version_supported = lambda self: None
+from django.db.backends.mysql.features import DatabaseFeatures
+DatabaseFeatures.can_return_columns_from_insert = False
+DatabaseFeatures.can_return_rows_from_bulk_insert = False
+
 DATABASES = {
     # ──────────────────────────────────────────────────────────────
     # CONFIGURACIÓN CASA (ACTIVA)
@@ -115,10 +122,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'obstetric_carebdd',
-        'USER': 'root',
-        'PASSWORD': '12345678',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'USER': os.environ.get('DB_USER', 'root'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {'charset': 'utf8mb4'},
     },
 
@@ -126,10 +133,10 @@ DATABASES = {
     'legacy': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'legacy_obstetric',
-        'USER': 'root',
-        'PASSWORD': '12345678',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'USER': os.environ.get('DB_USER', 'root'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {'charset': 'utf8mb4'},
     },
 
