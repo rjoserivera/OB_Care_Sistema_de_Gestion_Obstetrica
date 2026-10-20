@@ -168,3 +168,9 @@ Documentación/*
 __pycache__/locustfile*.pyc
 utilidad/cargar_catalogos.py
 utilidad/crear_usuarios_roles.py
+
+# Archivos de uso y guías de desarrollo local
+GUIA_LOCAL.md
+iniciar_local.bat
+image*.png
+
