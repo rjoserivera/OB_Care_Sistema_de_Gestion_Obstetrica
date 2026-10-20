@@ -14,17 +14,18 @@
 ## 📑 Tabla de Contenidos
 
 1. [Características Principales](#-características-principales)
-2. [Arquitectura del Sistema](#-arquitectura-del-sistema)
-3. [Roles de Usuario y Accesos](#-roles-de-usuario-y-accesos)
-4. [Estructura del Proyecto](#-estructura-del-proyecto)
-5. [Requisitos Previos](#-requisitos-previos)
-6. [Instalación y Puesta en Marcha](#-instalación-y-puesta-en-marcha)
-7. [Configuración de Bases de Datos](#-configuración-de-bases-de-datos)
-8. [Comandos y Scripts de Utilidad](#-comandos-y-scripts-de-utilidad)
-9. [Seguridad y Auditoría](#-seguridad-y-auditoría)
-10. [Pruebas y Control de Calidad](#-pruebas-y-control-de-calidad)
-11. [Manuales de Usuario y Recursos](#-manuales-de-usuario-y-recursos)
-12. [Créditos y Licencia](#-créditos-y-licencia)
+2. [Capturas de Pantalla e Interfaz](#-capturas-de-pantalla-e-interfaz)
+3. [Arquitectura del Sistema](#-arquitectura-del-sistema)
+4. [Roles de Usuario y Accesos](#-roles-de-usuario-y-accesos)
+5. [Estructura del Proyecto](#-estructura-del-proyecto)
+6. [Requisitos Previos](#-requisitos-previos)
+7. [Instalación y Puesta en Marcha](#-instalación-y-puesta-en-marcha)
+8. [Configuración de Bases de Datos](#-configuración-de-bases-de-datos)
+9. [Comandos y Scripts de Utilidad](#-comandos-y-scripts-de-utilidad)
+10. [Seguridad y Auditoría](#-seguridad-y-auditoría)
+11. [Pruebas y Control de Calidad](#-pruebas-y-control-de-calidad)
+12. [Manuales de Usuario y Recursos](#-manuales-de-usuario-y-recursos)
+13. [Créditos y Licencia](#-créditos-y-licencia)
 
 ---
 
@@ -40,6 +41,24 @@
 - **Notificaciones y Alertas en Tiempo Real:** Integración con **Telegram Bot** para alertas clínicas críticas a personal de turno y correo transaccional SMTP.
 - **Doble Base de Datos (Operacional + Histórica):** Capacidad de consultar registros históricos legados (`legacy_obstetric`) de forma aislada y segura mediante *Database Routers* de solo lectura.
 - **Validaciones Sanitarias Locales:** Validador algorítmico de RUT chileno (módulo 11) en backend (Python) y frontend (JavaScript) reactivo.
+
+---
+
+## 📸 Capturas de Pantalla e Interfaz
+
+### 🏠 Portal de Inicio
+Portal público con métricas en tiempo real de pacientes y personal de turno en el **Hospital Clínico Herminda Martín**:
+![Portal de Inicio](docs/img/portal_inicio.png)
+
+### 🔐 Inicio de Sesión y Autenticación
+Módulo de acceso seguro con redirección contextual según el rol asignado (Administrador, Médico, Matrona o TENS):
+<p align="center">
+  <img src="docs/img/login.png" alt="Pantalla de Inicio de Sesión" width="650"/>
+</p>
+
+### 👑 Panel de Control del Administrador
+Dashboard del rol administrativo con métricas activas, accesos a registros clínicos, catálogos, auditoría y cumplimiento de la **Ley Nº 19.628** (Protección de la Vida Privada):
+![Dashboard Administrador](docs/img/dashboard_admin.png)
 
 ---
 
